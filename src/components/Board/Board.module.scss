@@ -1,0 +1,165 @@
+@import '@/styles/variables.scss';
+
+.boardContainer {
+  position: relative;
+  width: $board-size;
+  height: $board-size;
+  padding: 30px;
+  background-color: $board-bg;
+  border-radius: $radius-lg;
+  border: 1px solid $border-medium; 
+  box-shadow: $shadow-card;
+  user-select: none;
+}
+
+.boardBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  border-radius: $radius-lg;
+}
+
+.board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+.winLineSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.winLine {
+  stroke: $accent-red;
+  stroke-width: 4px;
+  stroke-linecap: round;
+  animation: drawLine 0.5s ease-out forwards;
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+.row {
+  flex: 1;
+  display: flex;
+}
+
+.cell {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  // Use pseudo-elements for grid lines to ensure "intersection" look
+  // Horizontal line
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background-color: $grid-color;
+    // Darker grid lines for better visibility on paper background
+    background-color: rgba(55, 53, 47, 0.2); 
+    z-index: 0;
+  }
+  
+  // Vertical line
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    background-color: rgba(55, 53, 47, 0.2);
+    z-index: 0;
+  }
+}
+
+// Coordinate labels
+.coordLabel {
+  position: absolute;
+  font-size: 0.75rem;
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: $font-family-mono;
+}
+
+.coordTop {
+  top: 6px;
+  width: calc(#{$board-size} / 15);
+  text-align: center;
+}
+
+.coordLeft {
+  left: 6px;
+  height: calc(#{$board-size} / 15);
+  align-items: center;
+}
+
+// Ghost stone
+// Note: We use a separate pseudo element for ghost stone or rely on child
+// Since ::before/::after are used for grid lines, we need a different approach for ghost stone.
+// The previous implementation used ::after for ghost stone which conflicts with grid lines.
+// We will move ghost stone to a child element in React or use a dedicated class.
+// HOWEVER, to avoid changing React structure too much, we can use:
+// .cell:hover .ghostStone OR
+// We can use box-shadow/background on the cell content itself if it's empty? 
+// No, the cell is the container.
+// Let's use radial-gradient on the cell background for ghost stone!
+
+.board[data-player="black"] .cell:not(:has(.stone)):hover {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.2) 0, rgba(0, 0, 0, 0.2) 42%, transparent 44%);
+}
+
+.board[data-player="white"] .cell:not(:has(.stone)):hover {
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0, rgba(255, 255, 255, 0.6) 42%, transparent 44%);
+}
+
+
+// Handle Board Edges (Stop lines at center)
+.row:first-child .cell::after { top: 50%; }
+.row:last-child .cell::after { height: 50%; }
+.cell:first-child::before { left: 50%; }
+.cell:last-child::before { width: 50%; }
+
+// 天元 & 星位 - Minimalist dots
+.tianYuan, .starPoint {
+  width: 8px;
+  height: 8px;
+  background-color: $text-primary;
+  border-radius: 50%;
+  position: absolute;
+  z-index: 1;
+}
+
+.starPoint {
+  width: 6px;
+  height: 6px;
+}

@@ -1,0 +1,121 @@
+@import '@/styles/variables.scss';
+
+.gameInfo {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  padding: $spacing-xl;
+  background: $bg-primary;
+  border: 1px solid $border-light;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $text-primary;
+  text-align: left;
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $bg-secondary;
+  border-radius: $radius-md;
+  border: 1px solid $border-light;
+}
+
+.indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  
+  &.black {
+    background: $stone-black;
+  }
+
+  &.white {
+    background: $stone-white;
+    border: 1px solid $stone-white-stroke;
+  }
+}
+
+.statusText {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding-top: $spacing-md;
+  border-top: 1px solid $border-light;
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.statLabel {
+  font-size: 0.85rem;
+  color: $text-secondary;
+  font-weight: 500;
+}
+
+.statValue {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: $text-primary;
+  font-family: $font-family-mono;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-top: auto;
+}
+
+.button {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: $radius-sm;
+  transition: all $transition-base;
+  
+  // Default / Secondary Button Style
+  background: $bg-primary;
+  border: 1px solid $border-medium;
+  color: $text-primary;
+  box-shadow: $shadow-button;
+
+  &:hover:not(:disabled) {
+    background: $bg-secondary;
+    border-color: $text-secondary;
+  }
+
+  &:active:not(:disabled) {
+    background: $bg-tertiary;
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: $bg-secondary;
+    border-color: $border-light;
+    box-shadow: none;
+  }
+}

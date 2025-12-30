@@ -1,0 +1,68 @@
+@import '@/styles/variables.scss';
+
+.stone {
+  width: $stone-size;
+  height: $stone-size;
+  border-radius: 50%;
+  position: relative;
+  z-index: 10;
+  transition: transform $transition-base;
+
+  &.black {
+    background: $stone-black;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  &.white {
+    background: $stone-white;
+    border: 1px solid $stone-white-stroke;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Remove gloss for flat design
+.gloss {
+  display: none;
+}
+
+// Simple dot for last move
+.lastMoveMarker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  
+  .white & {
+    background: $stone-black;
+  }
+  
+  .black & {
+    background: $stone-white;
+  }
+}
+
+// Simple ring for winning stones
+.winning {
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    border: 2px solid $accent-red;
+    animation: pulse 2s infinite;
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
