@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
 import { useGameStore } from '@/store/gameStore';
 import { GameStatus } from '@/types/game';
 import styles from './GameResult.module.scss';
@@ -9,74 +10,36 @@ interface GameResultProps {
 }
 
 export const GameResult: React.FC<GameResultProps> = ({ onRestart, onBackToMenu }) => {
-  const { status, blackPlayerName, whitePlayerName, moveHistory, startTime } = useGameStore();
-  const [duration, setDuration] = useState('00:00');
+  const { status, startReplay, blackPlayerName, whitePlayerName } = useGameStore();
 
-  useEffect(() => {
-    if (startTime) {
-      const seconds = Math.floor((Date.now() - startTime) / 1000);
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      setDuration(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-    }
-  }, [startTime]);
-
-  if (status === GameStatus.PLAYING || status === GameStatus.WAITING) return null;
-
-  const getResultInfo = () => {
-    switch (status) {
-      case GameStatus.BLACK_WIN:
-        return {
-          icon: '⚫️',
-          title: `${blackPlayerName} 获胜`,
-          subtitle: '执黑先行，势如破竹',
-        };
-      case GameStatus.WHITE_WIN:
-        return {
-          icon: '⚪️',
-          title: `${whitePlayerName} 获胜`,
-          subtitle: '执白后手，运筹帷幄',
-        };
-      case GameStatus.DRAW:
-        return {
-          icon: '🤝',
-          title: '平局',
-          subtitle: '棋逢对手，难分伯仲',
-        };
-      default:
-        return { icon: '', title: '', subtitle: '' };
-    }
+  const handleReplay = () => {
+    startReplay();
   };
 
-  const info = getResultInfo();
+  const getTitle = () => {
+    if (status === GameStatus.DRAW) return '🤝 平局';
+    if (status === GameStatus.BLACK_WIN) return `🏆 ${blackPlayerName} 获胜!`;
+    if (status === GameStatus.WHITE_WIN) return `🏆 ${whitePlayerName} 获胜!`;
+    return '游戏结束';
+  };
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.card}>
-        <div className={styles.icon}>{info.icon}</div>
-        <h2 className={styles.title}>{info.title}</h2>
-        <p className={styles.subtitle}>{info.subtitle}</p>
-
-        <div className={styles.stats}>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>总手数</span>
-            <span className={styles.statValue}>{moveHistory.length}</span>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>用时</span>
-            <span className={styles.statValue}>{duration}</span>
-          </div>
-        </div>
-
+      <motion.div 
+        className={styles.modal}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', damping: 20 }}
+      >
+        <h2 className={styles.title}>{getTitle()}</h2>
+        
         <div className={styles.actions}>
-          <button className={styles.primaryButton} onClick={onRestart}>
-            再来一局
-          </button>
-          <button className={styles.secondaryButton} onClick={onBackToMenu}>
-            返回主菜单
-          </button>
+          <button className={styles.primaryButton} onClick={onRestart}>再来一局</button>
+          <button className={styles.secondaryButton} onClick={handleReplay}>复盘分析</button>
+          <button className={styles.textButton} onClick={onBackToMenu}>返回菜单</button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
+

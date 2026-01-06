@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { StoneType, GameStatus } from '@/types/game';
+import { StoneType, GameStatus, GameMode } from '@/types/game';
 import { soundManager } from '@/utils/sound';
 import styles from './GameInfo.module.scss';
 
-export const GameInfo: React.FC = () => {
+export const GameInfo: React.FC<{ isAIThinking?: boolean }> = ({ isAIThinking = false }) => {
   const {
     currentPlayer,
     status,
@@ -13,7 +13,8 @@ export const GameInfo: React.FC = () => {
     moveHistory,
     undoMove,
     resetGame,
-    startTime
+    startTime,
+    mode
   } = useGameStore();
 
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -51,6 +52,10 @@ export const GameInfo: React.FC = () => {
       case GameStatus.WAITING:
         return '准备开始';
       case GameStatus.PLAYING:
+        // AI思考中显示特殊提示
+        if (mode === GameMode.PVE && isAIThinking) {
+          return `🤖 AI思考中...`;
+        }
         return currentPlayer === StoneType.BLACK
           ? `${blackPlayerName} 的回合`
           : `${whitePlayerName} 的回合`;
@@ -97,15 +102,16 @@ export const GameInfo: React.FC = () => {
         <button
           className={styles.button}
           onClick={undoMove}
-          disabled={moveHistory.length === 0 || status !== GameStatus.PLAYING}
+          disabled={moveHistory.length === 0 || status !== GameStatus.PLAYING || isAIThinking}
+          title={isAIThinking ? 'AI思考中无法悔棋' : '悔棋 (Ctrl+Z)'}
         >
           悔棋 (Ctrl+Z)
         </button>
         <button className={styles.button} onClick={resetGame}>
           重新开始
         </button>
-        <button 
-          className={styles.button} 
+        <button
+          className={styles.button}
           onClick={toggleMute}
           style={{ opacity: isMuted ? 0.6 : 1 }}
         >

@@ -22,12 +22,13 @@ export const Stone: React.FC<StoneProps> = ({
       className={`${styles.stone} ${isBlack ? styles.black : styles.white} ${
         isWinning ? styles.winning : ''
       }`}
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
+      initial={{ scale: 1.5, opacity: 0, y: -20 }} // Drop from above
+      animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{
         type: 'spring',
-        stiffness: 300,
-        damping: 25,
+        stiffness: 400,
+        damping: 15, // Bouncy
+        mass: 0.8
       }}
     >
       {/* 最后一步标记 */}

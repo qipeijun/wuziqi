@@ -78,6 +78,7 @@ export class PatternMatcher {
 
   /**
    * 识别棋型模式
+   * 优化：避免重复计数，使用更精确的匹配
    */
   private recognizePattern(line: string): Partial<PatternAnalysis> {
     const result: Partial<PatternAnalysis> = {};
@@ -92,62 +93,92 @@ export class PatternMatcher {
     if (/_XXXX_/.test(line)) {
       result.activeFourCount = 1;
       result.isActiveFour = true;
-    }
+      // 找到活四后，不再计算冲四（避免重复）
+    } else {
+      // 冲四: XXXXO, OXXXX, XXXXB, BXXXX, XX_XX, X_XXX, XXX_X
+      // 使用match而非test，避免重复匹配
+      const blockedFourPatterns = [
+        /BXXXX_/,
+        /_XXXXB/,
+        /OXXXX_/,
+        /_XXXXO/,
+        /XX_XX/,
+        /XXX_X/,
+        /X_XXX/,
+      ];
 
-    // 冲四: XXXXO, OXXXX, XXXXB, BXXXX, XX_XX, X_XXX, XXX_X
-    const blockedFourPatterns = [
-      /BXXXX_/,
-      /_XXXXB/,
-      /OXXXX_/,
-      /_XXXXO/,
-      /XX_XX/,
-      /XXX_X/,
-      /X_XXX/,
-    ];
-    for (const pattern of blockedFourPatterns) {
-      if (pattern.test(line)) {
-        result.blockedFourCount = (result.blockedFourCount || 0) + 1;
+      let blockedFourFound = false;
+      for (const pattern of blockedFourPatterns) {
+        if (pattern.test(line)) {
+          blockedFourFound = true;
+          break;
+        }
+      }
+      if (blockedFourFound) {
+        result.blockedFourCount = 1;
       }
     }
 
     // 活三: _XXX_, _XX_X_, _X_XX_
     const activeThreePatterns = [/_XXX_/, /_XX_X_/, /_X_XX_/];
+    let activeThreeFound = false;
     for (const pattern of activeThreePatterns) {
       if (pattern.test(line)) {
-        result.activeThreeCount = (result.activeThreeCount || 0) + 1;
+        activeThreeFound = true;
+        break;
       }
     }
+    if (activeThreeFound) {
+      result.activeThreeCount = 1;
+    } else {
+      // 眠三: OXXX_, _XXXO, BXXX_, _XXXB, BXX_X, X_XXB, OXX_X, X_XXO
+      const blockedThreePatterns = [
+        /BXXX_/,
+        /_XXXB/,
+        /OXXX_/,
+        /_XXXO/,
+        /BXX_X/,
+        /X_XXB/,
+        /OXX_X/,
+        /X_XXO/,
+      ];
 
-    // 眠三: OXXX_, _XXXO, BXXX_, _XXXB, BXX_X, X_XXB, OXX_X, X_XXO
-    const blockedThreePatterns = [
-      /BXXX_/,
-      /_XXXB/,
-      /OXXX_/,
-      /_XXXO/,
-      /BXX_X/,
-      /X_XXB/,
-      /OXX_X/,
-      /X_XXO/,
-    ];
-    for (const pattern of blockedThreePatterns) {
-      if (pattern.test(line)) {
-        result.blockedThreeCount = (result.blockedThreeCount || 0) + 1;
+      let blockedThreeFound = false;
+      for (const pattern of blockedThreePatterns) {
+        if (pattern.test(line)) {
+          blockedThreeFound = true;
+          break;
+        }
+      }
+      if (blockedThreeFound) {
+        result.blockedThreeCount = 1;
       }
     }
 
     // 活二: _XX_, _X_X_
     const activeTwoPatterns = [/_XX_/, /_X_X_/];
+    let activeTwoFound = false;
     for (const pattern of activeTwoPatterns) {
       if (pattern.test(line)) {
-        result.activeTwoCount = (result.activeTwoCount || 0) + 1;
+        activeTwoFound = true;
+        break;
       }
     }
+    if (activeTwoFound) {
+      result.activeTwoCount = 1;
+    } else {
+      // 眠二: BXX_, _XXB, OXX_, _XXO, BX_X, X_XB
+      const blockedTwoPatterns = [/BXX_/, /_XXB/, /OXX_/, /_XXO/, /BX_X/, /X_XB/];
 
-    // 眠二: BXX_, _XXB, OXX_, _XXO, BX_X, X_XB
-    const blockedTwoPatterns = [/BXX_/, /_XXB/, /OXX_/, /_XXO/, /BX_X/, /X_XB/];
-    for (const pattern of blockedTwoPatterns) {
-      if (pattern.test(line)) {
-        result.blockedTwoCount = (result.blockedTwoCount || 0) + 1;
+      let blockedTwoFound = false;
+      for (const pattern of blockedTwoPatterns) {
+        if (pattern.test(line)) {
+          blockedTwoFound = true;
+          break;
+        }
+      }
+      if (blockedTwoFound) {
+        result.blockedTwoCount = 1;
       }
     }
 

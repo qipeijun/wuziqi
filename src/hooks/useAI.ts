@@ -4,8 +4,8 @@ import { GameMode, GameStatus, StoneType, Position, AIDifficulty } from '@/types
 
 // Define message types for type safety
 type WorkerMessage =
-  | { type: 'INIT'; difficulty: AIDifficulty }
-  | { type: 'GET_MOVE'; board: StoneType[][]; player: StoneType; difficulty?: AIDifficulty };
+  | { type: 'INIT'; difficulty: AIDifficulty; enableForbidden: boolean }
+  | { type: 'GET_MOVE'; board: StoneType[][]; player: StoneType; difficulty?: AIDifficulty; enableForbidden?: boolean };
 
 /**
  * AI Hook
@@ -17,6 +17,7 @@ export const useAI = () => {
   const status = useGameStore((state) => state.status);
   const currentPlayer = useGameStore((state) => state.currentPlayer);
   const difficulty = useGameStore((state) => state.difficulty);
+  const enableForbidden = useGameStore((state) => state.enableForbidden);
   const makeMove = useGameStore((state) => state.makeMove);
 
   // 使用 ref 保存最新的 board 状态
@@ -24,6 +25,8 @@ export const useAI = () => {
   const [isThinking, setIsThinking] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const isExecutingRef = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const thinkingStartTimeRef = useRef<number>(0); // 记录开始思考的时间
 
   // 订阅 board 变化
   useEffect(() => {
@@ -47,25 +50,55 @@ export const useAI = () => {
       // 初始化难度
       workerRef.current.postMessage({
         type: 'INIT',
-        difficulty
+        difficulty,
+        enableForbidden
       } as WorkerMessage);
 
       // 监听 Worker 消息
-      workerRef.current.onmessage = (e: MessageEvent<Position>) => {
-        const bestMove = e.data;
+      workerRef.current.onmessage = (e: MessageEvent<{ move: Position, score: number }>) => {
+        const { move, score } = e.data;
 
-        // 稍微延迟一下落子，避免太快
+        // 清除超时定时器
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
+        // 计算已经思考的时间
+        const elapsedTime = Date.now() - thinkingStartTimeRef.current;
+        const minThinkingTime = 800; // 最小思考时间800ms，让用户看到AI在思考
+        const remainingTime = Math.max(0, minThinkingTime - elapsedTime);
+
+        // 如果思考时间太短，延迟一下再落子
         setTimeout(() => {
-          const success = makeMove(bestMove);
+          // 立即执行落子
+          const success = makeMove(move, score);
           if (!success) {
             console.warn('AI落子失败，位置可能已被占用');
           }
+
+          // 落子后立刻停止"思考"状态
           setIsThinking(false);
           isExecutingRef.current = false;
-        }, 500);
+        }, remainingTime);
+      };
+
+      // 错误处理
+      workerRef.current.onerror = (error) => {
+        console.error('AI Worker错误:', error);
+        setIsThinking(false);
+        isExecutingRef.current = false;
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        alert('AI计算出错，请重新开始游戏');
       };
 
       return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
         workerRef.current?.terminate();
         workerRef.current = null;
       };
@@ -77,10 +110,11 @@ export const useAI = () => {
     if (workerRef.current && mode === GameMode.PVE) {
       workerRef.current.postMessage({
         type: 'INIT',
-        difficulty
+        difficulty,
+        enableForbidden
       } as WorkerMessage);
     }
-  }, [difficulty, mode]);
+  }, [difficulty, mode, enableForbidden]);
 
   // 监听游戏状态，在AI回合时自动执行
   useEffect(() => {
@@ -94,16 +128,26 @@ export const useAI = () => {
     ) {
       isExecutingRef.current = true;
       setIsThinking(true);
+      thinkingStartTimeRef.current = Date.now(); // 记录开始时间
+
+      // 设置超时（30秒）
+      timeoutRef.current = setTimeout(() => {
+        console.error('AI计算超时');
+        setIsThinking(false);
+        isExecutingRef.current = false;
+        alert('AI思考超时，请重新开始游戏');
+      }, 30000);
 
       // 发送消息给 Worker 开始计算
       workerRef.current.postMessage({
         type: 'GET_MOVE',
         board: boardRef.current,
         player: StoneType.WHITE,
-        difficulty
+        difficulty,
+        enableForbidden
       } as WorkerMessage);
     }
-  }, [mode, status, currentPlayer, isThinking, makeMove, difficulty]);
+  }, [mode, status, currentPlayer, isThinking, makeMove, difficulty, enableForbidden]);
 
   return { isThinking };
 };

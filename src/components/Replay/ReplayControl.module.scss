@@ -1,0 +1,170 @@
+@import '@/styles/variables.scss';
+
+.replayControl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 360px;
+  user-select: none; // 防止拖动时选中文字
+}
+
+.dragHandle {
+  cursor: move;
+  width: 100%;
+  position: relative;
+  padding-bottom: 8px;
+}
+
+.dragIcon {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  color: $text-secondary;
+  opacity: 0.5;
+  letter-spacing: -2px;
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: $text-secondary;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative; // For chart positioning context if needed
+  flex-wrap: wrap; // Allow wrapping if chart takes full width
+  justify-content: center;
+}
+
+.chartContainer {
+  width: 100%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: $bg-secondary;
+  color: $text-primary;
+  cursor: pointer;
+  transition: all $transition-base;
+  font-size: 1.1rem;
+  
+  &:hover:not(:disabled) {
+    background: $bg-tertiary;
+    transform: scale(1.1);
+  }
+  
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+  
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.sliderContainer {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: $border-medium;
+  border-radius: 2px;
+  outline: none;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: $accent-blue;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform $transition-base;
+    
+    &:hover {
+      transform: scale(1.2);
+    }
+  }
+}
+
+.stepInfo {
+  font-family: $font-family-mono;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: $text-primary;
+  min-width: 60px;
+  text-align: right;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.iconButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: white;
+  color: $text-secondary;
+  border: 1px solid $border-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all $transition-base;
+  
+  &:hover {
+    transform: scale(1.1);
+    color: $text-primary;
+    background: $bg-secondary;
+  }
+}
+
+// Old closeButton removed
+

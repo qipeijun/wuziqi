@@ -1,36 +1,34 @@
-import { Position, StoneType } from '@/types/game';
+import { StoneType, Position } from '@/types/game';
+import { BOARD_SIZE } from '@/utils/constants';
 
-/**
- * 五子棋胜负判定器
- * 高效算法：只检查最后一步落子周围的四个方向
- */
 export class WinChecker {
-  private readonly BOARD_SIZE = 15;
-  private readonly WIN_COUNT = 5;
-
-  // 四个方向：水平、垂直、左斜、右斜
-  private readonly DIRECTIONS = [
-    { dr: 0, dc: 1 },   // 水平
-    { dr: 1, dc: 0 },   // 垂直
-    { dr: 1, dc: 1 },   // 左上到右下
-    { dr: 1, dc: -1 },  // 右上到左下
+  private directions = [
+    { dr: 1, dc: 0 }, // Vertical
+    { dr: 0, dc: 1 }, // Horizontal
+    { dr: 1, dc: 1 }, // Diagonal \
+    { dr: 1, dc: -1 }, // Diagonal /
   ];
 
-  /**
-   * 检查是否获胜
-   * @param board 棋盘状态
-   * @param lastMove 最后一步移动
-   * @returns 是否获胜
-   */
-  public checkWin(board: StoneType[][], lastMove: Position): boolean {
-    const player = board[lastMove.row][lastMove.col];
+  public checkWin(board: StoneType[][], lastMove: Position, enableForbidden: boolean = false): boolean {
+    const { row, col } = lastMove;
+    const player = board[row][col];
 
     if (player === StoneType.EMPTY) return false;
 
-    // 检查四个方向
-    for (const dir of this.DIRECTIONS) {
-      const count = this.countInDirection(board, lastMove, player, dir);
-      if (count >= this.WIN_COUNT) {
+    for (const { dr, dc } of this.directions) {
+      const count = this.countConsecutive(board, row, col, dr, dc, player);
+
+      // 恰好5连：获胜
+      if (count === 5) {
+        return true;
+      }
+
+      // 长连（6+）：如果是黑棋且启用禁手，则不算赢；否则算赢
+      if (count > 5) {
+        if (enableForbidden && player === StoneType.BLACK) {
+          // 黑棋长连是禁手，不算获胜
+          continue;
+        }
         return true;
       }
     }
@@ -38,70 +36,15 @@ export class WinChecker {
     return false;
   }
 
-  /**
-   * 计算某个方向上连续相同棋子的数量
-   */
-  private countInDirection(
-    board: StoneType[][],
-    pos: Position,
-    player: StoneType,
-    dir: { dr: number; dc: number }
-  ): number {
-    let count = 1; // 包含当前位置
-
-    // 正向搜索
-    count += this.countStones(board, pos, player, dir.dr, dir.dc);
-    // 反向搜索
-    count += this.countStones(board, pos, player, -dir.dr, -dir.dc);
-
-    return count;
-  }
-
-  /**
-   * 沿着某个方向计数
-   */
-  private countStones(
-    board: StoneType[][],
-    pos: Position,
-    player: StoneType,
-    dr: number,
-    dc: number
-  ): number {
-    let count = 0;
-    let r = pos.row + dr;
-    let c = pos.col + dc;
-
-    while (
-      r >= 0 &&
-      r < this.BOARD_SIZE &&
-      c >= 0 &&
-      c < this.BOARD_SIZE &&
-      board[r][c] === player
-    ) {
-      count++;
-      r += dr;
-      c += dc;
-    }
-
-    return count;
-  }
-
-  /**
-   * 检查是否平局（棋盘已满）
-   */
-  public checkDraw(board: StoneType[][]): boolean {
-    return board.every((row) => row.every((cell) => cell !== StoneType.EMPTY));
-  }
-
-  /**
-   * 获取获胜的棋子位置（用于高亮显示）
-   */
   public getWinningStones(board: StoneType[][], lastMove: Position): Position[] {
-    const player = board[lastMove.row][lastMove.col];
+    const { row, col } = lastMove;
+    const player = board[row][col];
+    
+    if (player === StoneType.EMPTY) return [];
 
-    for (const dir of this.DIRECTIONS) {
-      const stones = this.getStoneLineInDirection(board, lastMove, player, dir);
-      if (stones.length >= this.WIN_COUNT) {
+    for (const { dr, dc } of this.directions) {
+      const stones = this.getConsecutiveStones(board, row, col, dr, dc, player);
+      if (stones.length >= 5) {
         return stones;
       }
     }
@@ -109,44 +52,77 @@ export class WinChecker {
     return [];
   }
 
-  private getStoneLineInDirection(
+  public checkDraw(board: StoneType[][]): boolean {
+    return board.every((row) => row.every((cell) => cell !== StoneType.EMPTY));
+  }
+
+  private countConsecutive(
     board: StoneType[][],
-    pos: Position,
-    player: StoneType,
-    dir: { dr: number; dc: number }
+    r: number,
+    c: number,
+    dr: number,
+    dc: number,
+    player: StoneType
+  ): number {
+    let count = 1;
+    
+    // Check forward
+    let i = 1;
+    while (true) {
+      const nr = r + dr * i;
+      const nc = c + dc * i;
+      if (!this.isValid(nr, nc) || board[nr][nc] !== player) break;
+      count++;
+      i++;
+    }
+
+    // Check backward
+    i = 1;
+    while (true) {
+      const nr = r - dr * i;
+      const nc = c - dc * i;
+      if (!this.isValid(nr, nc) || board[nr][nc] !== player) break;
+      count++;
+      i++;
+    }
+
+    return count;
+  }
+
+  private getConsecutiveStones(
+    board: StoneType[][],
+    r: number,
+    c: number,
+    dr: number,
+    dc: number,
+    player: StoneType
   ): Position[] {
-    const line: Position[] = [{ ...pos }];
-
-    // 正向
-    let r = pos.row + dir.dr;
-    let c = pos.col + dir.dc;
-    while (
-      r >= 0 &&
-      r < this.BOARD_SIZE &&
-      c >= 0 &&
-      c < this.BOARD_SIZE &&
-      board[r][c] === player
-    ) {
-      line.push({ row: r, col: c });
-      r += dir.dr;
-      c += dir.dc;
+    const stones: Position[] = [{ row: r, col: c }];
+    
+    // Check forward
+    let i = 1;
+    while (true) {
+      const nr = r + dr * i;
+      const nc = c + dc * i;
+      if (!this.isValid(nr, nc) || board[nr][nc] !== player) break;
+      stones.push({ row: nr, col: nc });
+      i++;
     }
 
-    // 反向
-    r = pos.row - dir.dr;
-    c = pos.col - dir.dc;
-    while (
-      r >= 0 &&
-      r < this.BOARD_SIZE &&
-      c >= 0 &&
-      c < this.BOARD_SIZE &&
-      board[r][c] === player
-    ) {
-      line.unshift({ row: r, col: c });
-      r -= dir.dr;
-      c -= dir.dc;
+    // Check backward
+    i = 1;
+    while (true) {
+      const nr = r - dr * i;
+      const nc = c - dc * i;
+      if (!this.isValid(nr, nc) || board[nr][nc] !== player) break;
+      stones.push({ row: nr, col: nc });
+      i++;
     }
 
-    return line;
+    return stones;
+  }
+
+  private isValid(row: number, col: number): boolean {
+    return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
   }
 }

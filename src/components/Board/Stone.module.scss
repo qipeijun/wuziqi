@@ -6,17 +6,44 @@
   border-radius: 50%;
   position: relative;
   z-index: 10;
-  transition: transform $transition-base;
+  
+  // Dynamic Shadow (Simulates height)
+  // This moves the shadow slightly down-right
+  box-shadow: 2px 4px 5px rgba(0, 0, 0, 0.4), inset 0 -3px 4px rgba(0,0,0,0.2);
 
   &.black {
-    background: $stone-black;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    // Yunzi (Cloud Stone) Effect - Matte Black with slight green tint on edges when held to light (simulated via subtle gradient)
+    background: radial-gradient(circle at 30% 30%, #4a4a4a 0%, #2c2c2c 20%, #000000 80%);
+    
+    // Subtle rim light
+    &::after {
+      content: '';
+      position: absolute;
+      top: 5%;
+      left: 5%;
+      width: 90%;
+      height: 90%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.15) 0%, transparent 40%);
+    }
   }
 
   &.white {
-    background: $stone-white;
-    border: 1px solid $stone-white-stroke;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    // Shell/Agate Effect - Glossy White
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e6e6e6 40%, #c8c8c6 100%);
+    border: 1px solid rgba(0,0,0,0.05); // Very faint border
+    
+    // Strong specular highlight
+    &::after {
+      content: '';
+      position: absolute;
+      top: 5%;
+      left: 5%;
+      width: 90%;
+      height: 90%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 25%);
+    }
   }
 }
 
@@ -25,44 +52,37 @@
   display: none;
 }
 
-// Simple dot for last move
+// Last move marker - Glowing Red Dot
 .lastMoveMarker {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  background-color: $accent-red;
+  box-shadow: 0 0 6px $accent-red, 0 0 10px $accent-red-glow; // Strong glow
+  z-index: 12;
   
-  .white & {
-    background: $stone-black;
-  }
-  
-  .black & {
-    background: $stone-white;
-  }
+  // Pulsing animation for high visibility
+  animation: markerPulse 2s infinite ease-in-out;
 }
 
-// Simple ring for winning stones
+@keyframes markerPulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+}
+
+// Winning Stones Highlight
 .winning {
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    right: -4px;
-    bottom: -4px;
-    border-radius: 50%;
-    border: 2px solid $accent-red;
-    animation: pulse 2s infinite;
-  }
+  // Instead of a ring, let's make the stone itself glow
+  animation: winningPulse 1.5s infinite alternate;
+  z-index: 15;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.1); opacity: 0.4; }
-  100% { transform: scale(1); opacity: 0.8; }
+@keyframes winningPulse {
+  from { box-shadow: 0 0 10px $accent-red-glow, inset 0 0 10px rgba(235, 87, 87, 0.2); transform: scale(1); }
+  to { box-shadow: 0 0 20px $accent-red, inset 0 0 20px rgba(235, 87, 87, 0.4); transform: scale(1.05); }
 }

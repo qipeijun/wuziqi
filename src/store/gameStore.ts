@@ -21,6 +21,7 @@ interface GameState {
   status: GameStatus;
   mode: GameMode;
   difficulty: AIDifficulty;
+  enableForbidden: boolean;
 
   // 历史记录
   moveHistory: Move[];
@@ -33,12 +34,24 @@ interface GameState {
   whitePlayerName: string;
   startTime: number | null;
 
+  // 复盘状态
+  isReplaying: boolean;
+  replayStep: number; // 0 to moveHistory.length
+
   // Actions
-  initGame: (mode: GameMode, difficulty?: AIDifficulty) => void;
-  makeMove: (position: Position) => boolean;
+  initGame: (mode: GameMode, difficulty?: AIDifficulty, enableForbidden?: boolean) => void;
+  makeMove: (position: Position, score?: number) => boolean;
   undoMove: () => void;
   resetGame: () => void;
   setDifficulty: (difficulty: AIDifficulty) => void;
+  setEnableForbidden: (enable: boolean) => void;
+
+  // Replay Actions
+  startReplay: () => void;
+  exitReplay: () => void;
+  jumpToStep: (step: number) => void;
+  nextStep: () => void;
+  prevStep: () => void;
 }
 
 const winChecker = new WinChecker();
@@ -53,20 +66,24 @@ export const useGameStore = create<GameState>()(
         status: GameStatus.WAITING,
         mode: GameMode.PVP,
         difficulty: AIDifficulty.MEDIUM,
+        enableForbidden: true,
         moveHistory: [],
         winningStones: [],
         blackPlayerName: DEFAULT_PLAYER_NAMES.BLACK,
         whitePlayerName: DEFAULT_PLAYER_NAMES.WHITE,
         startTime: null,
+        isReplaying: false,
+        replayStep: 0,
 
         // Actions
-        initGame: (mode, difficulty) => {
+        initGame: (mode, difficulty, enableForbidden) => {
           set({
             board: createEmptyBoard(BOARD_SIZE),
             currentPlayer: StoneType.BLACK,
             status: GameStatus.PLAYING,
             mode,
             difficulty: difficulty || AIDifficulty.MEDIUM,
+            enableForbidden: enableForbidden ?? true, // Default true
             moveHistory: [],
             winningStones: [],
             startTime: Date.now(),
@@ -74,10 +91,47 @@ export const useGameStore = create<GameState>()(
               mode === GameMode.PVE
                 ? DEFAULT_PLAYER_NAMES.AI
                 : DEFAULT_PLAYER_NAMES.WHITE,
+            isReplaying: false,
+            replayStep: 0,
           });
         },
 
-        makeMove: (position) => {
+        // ... makeMove ...
+
+        startReplay: () => {
+          const state = get();
+          set({
+            isReplaying: true,
+            replayStep: state.moveHistory.length, // Start at the end
+          });
+        },
+
+        exitReplay: () => {
+          set({ isReplaying: false });
+        },
+
+        jumpToStep: (step) => {
+          const state = get();
+          const maxStep = state.moveHistory.length;
+          const safeStep = Math.max(0, Math.min(step, maxStep));
+          set({ replayStep: safeStep });
+        },
+
+        nextStep: () => {
+          const state = get();
+          if (state.replayStep < state.moveHistory.length) {
+            set({ replayStep: state.replayStep + 1 });
+          }
+        },
+
+        prevStep: () => {
+          const state = get();
+          if (state.replayStep > 0) {
+            set({ replayStep: state.replayStep - 1 });
+          }
+        },
+
+        makeMove: (position, score) => {
           const state = get();
 
           // 验证游戏状态
@@ -100,10 +154,11 @@ export const useGameStore = create<GameState>()(
             player: state.currentPlayer,
             timestamp: Date.now(),
             moveNumber: state.moveHistory.length + 1,
+            score: score, // Save AI score if provided
           };
 
           // 检查胜负
-          const hasWon = winChecker.checkWin(newBoard, position);
+          const hasWon = winChecker.checkWin(newBoard, position, state.enableForbidden);
           const isDraw = !hasWon && winChecker.checkDraw(newBoard);
 
           let newStatus: GameStatus = state.status;
@@ -121,7 +176,13 @@ export const useGameStore = create<GameState>()(
             newStatus = GameStatus.DRAW;
             soundManager.playButtonSound(); // Simple sound for draw
           } else {
-            soundManager.playMoveSound();
+            // Play sound based on WHO just played (current player state hasn't flipped yet in this closure capture, but logic below flips it)
+            // Wait, state.currentPlayer IS the one who just moved.
+            if (state.currentPlayer === StoneType.BLACK) {
+              soundManager.playStoneSound('black');
+            } else {
+              soundManager.playStoneSound('white');
+            }
           }
 
           // 更新状态
@@ -184,6 +245,10 @@ export const useGameStore = create<GameState>()(
 
         setDifficulty: (difficulty) => {
           set({ difficulty });
+        },
+
+        setEnableForbidden: (enable) => {
+          set({ enableForbidden: enable });
         },
       }),
       {

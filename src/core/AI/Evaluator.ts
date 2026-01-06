@@ -87,14 +87,6 @@ export class Evaluator {
     let score = 0;
 
     // 将线转换为简单的字符表示：X=己方, O=对方, _=空
-    // 注意：StoneType 实际上是数字 (0, 1, 2)，需要正确映射
-    // 假设 StoneType.EMPTY=0, BLACK=1, WHITE=2 (需要确认 types/game.ts)
-    // 为了安全，直接用 replace
-
-    // 这里我们假设 line 是由 StoneType 组成的字符串 (e.g. "001200")
-    // 我们需要将其转换为统一格式以便正则匹配
-
-    // 构造正则匹配字符串
     const p = player.toString();
     const e = StoneType.EMPTY.toString();
 
@@ -103,19 +95,19 @@ export class Evaluator {
     const fiveCount = (line.match(fiveRegex) || []).length;
     score += fiveCount * PATTERN_SCORES.FIVE;
 
+    // 如果已经有连五，直接返回
+    if (fiveCount > 0) return score;
+
     // 活四: _XXXX_
     const activeFourRegex = new RegExp(`${e}${p}${p}${p}${p}${e}`, 'g');
     const activeFourCount = (line.match(activeFourRegex) || []).length;
     score += activeFourCount * PATTERN_SCORES.ACTIVE_FOUR;
 
-    // 冲四: OXXXX_, _XXXXO, OXXXXO (被堵一边)
-    // 注意：活四也会被下面的正则匹配到，所以需要减去活四的分数或者小心构造正则
-    // 简单起见，我们先匹配活四，然后把活四替换掉，再匹配冲四？
-    // 或者使用更复杂的正则。
-
-    // 更好的方法：查找所有 "XXXX"
+    // 冲四: 找到所有XXXX，排除活四
     const fourRegex = new RegExp(`${p}${p}${p}${p}`, 'g');
+    let fourMatches = 0;
     let match;
+    fourRegex.lastIndex = 0; // Reset regex
     while ((match = fourRegex.exec(line)) !== null) {
       const index = match.index;
       const left = line[index - 1];
@@ -124,31 +116,29 @@ export class Evaluator {
       const leftEmpty = left === e;
       const rightEmpty = right === e;
 
-      if (leftEmpty && rightEmpty) {
-        // 活四，已经算过了，这里不加分 (或者在这里算，上面去掉)
-        // 实际上上面算过了，这里不做处理
-      } else if (leftEmpty || rightEmpty) {
-        score += PATTERN_SCORES.BLOCKED_FOUR;
+      // 只计算冲四（一边空，一边不空），排除活四
+      if ((leftEmpty && !rightEmpty) || (!leftEmpty && rightEmpty)) {
+        fourMatches++;
       }
     }
+    score += fourMatches * PATTERN_SCORES.BLOCKED_FOUR;
 
-    // 活三: _XXX_ (且至少有一边还能下) -> 其实 _XXX_ 就是活三
-    // 还有 _XX_X_ 和 _X_XX_
+    // 活三: _XXX_, _XX_X_, _X_XX_
     const activeThreePatterns = [
-      `${e}${p}${p}${p}${e}`,
-      `${e}${p}${p}${e}${p}${e}`,
-      `${e}${p}${e}${p}${p}${e}`
+      new RegExp(`${e}${p}${p}${p}${e}`, 'g'),
+      new RegExp(`${e}${p}${p}${e}${p}${e}`, 'g'),
+      new RegExp(`${e}${p}${e}${p}${p}${e}`, 'g')
     ];
 
-    for (const pat of activeThreePatterns) {
-      const regex = new RegExp(pat, 'g');
+    for (const regex of activeThreePatterns) {
       const count = (line.match(regex) || []).length;
       score += count * PATTERN_SCORES.ACTIVE_THREE;
     }
 
-    // 眠三 (略复杂，简化处理，只匹配连在一起的)
-    // OXXX_, _XXXO
+    // 眠三: 找到所有XXX，排除活三
     const threeRegex = new RegExp(`${p}${p}${p}`, 'g');
+    let threeMatches = 0;
+    threeRegex.lastIndex = 0;
     while ((match = threeRegex.exec(line)) !== null) {
       const index = match.index;
       const left = line[index - 1];
@@ -157,17 +147,23 @@ export class Evaluator {
       const leftEmpty = left === e;
       const rightEmpty = right === e;
 
-      if (leftEmpty && rightEmpty) {
-        // 活三，上面算过了
-      } else if (leftEmpty || rightEmpty) {
-        score += PATTERN_SCORES.BLOCKED_THREE;
+      // 只计算眠三（一边空，一边不空），排除活三
+      if ((leftEmpty && !rightEmpty) || (!leftEmpty && rightEmpty)) {
+        threeMatches++;
       }
     }
+    score += threeMatches * PATTERN_SCORES.BLOCKED_THREE;
 
-    // 活二
-    const activeTwoRegex = new RegExp(`${e}${p}${p}${e}`, 'g');
-    const activeTwoCount = (line.match(activeTwoRegex) || []).length;
-    score += activeTwoCount * PATTERN_SCORES.ACTIVE_TWO;
+    // 活二: _XX_, _X_X_
+    const activeTwoPatterns = [
+      new RegExp(`${e}${p}${p}${e}`, 'g'),
+      new RegExp(`${e}${p}${e}${p}${e}`, 'g')
+    ];
+
+    for (const regex of activeTwoPatterns) {
+      const count = (line.match(regex) || []).length;
+      score += count * PATTERN_SCORES.ACTIVE_TWO;
+    }
 
     return score;
   }

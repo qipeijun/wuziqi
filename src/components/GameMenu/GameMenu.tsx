@@ -4,7 +4,7 @@ import { GameMode, AIDifficulty } from '@/types/game';
 import styles from './GameMenu.module.scss';
 
 interface GameMenuProps {
-  onStartGame: (mode: GameMode, difficulty?: AIDifficulty) => void;
+  onStartGame: (mode: GameMode, difficulty?: AIDifficulty, enableForbidden?: boolean) => void;
 }
 
 export const GameMenu: React.FC<GameMenuProps> = ({ onStartGame }) => {
@@ -12,13 +12,10 @@ export const GameMenu: React.FC<GameMenuProps> = ({ onStartGame }) => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty>(
     AIDifficulty.MEDIUM
   );
+  const [enableForbidden, setEnableForbidden] = useState(true);
 
   const handleStart = () => {
-    if (selectedMode === GameMode.PVE) {
-      onStartGame(selectedMode, selectedDifficulty);
-    } else {
-      onStartGame(selectedMode);
-    }
+    onStartGame(selectedMode, selectedDifficulty, enableForbidden);
   };
 
   return (
@@ -56,6 +53,23 @@ export const GameMenu: React.FC<GameMenuProps> = ({ onStartGame }) => {
               <span className={styles.optionDesc}>与AI对弈</span>
             </button>
           </div>
+        </div>
+
+        {/* 规则设置 */}
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>规则设置</h3>
+          <label className={styles.toggleLabel}>
+            <input 
+              type="checkbox" 
+              checked={enableForbidden}
+              onChange={(e) => setEnableForbidden(e.target.checked)}
+              className={styles.checkbox}
+            />
+            <span className={styles.toggleText}>
+              开启禁手规则 (Renju)
+              <span className={styles.toggleDesc}>黑棋禁止下三三、四四、长连</span>
+            </span>
+          </label>
         </div>
 
         {/* AI难度选择（仅在PVE模式下显示） */}

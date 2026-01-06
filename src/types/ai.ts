@@ -2,7 +2,7 @@ import { Position, StoneType } from './game';
 
 // AI接口
 export interface AIPlayer {
-  getBestMove(board: StoneType[][], aiPlayer: StoneType): Position;
+  getBestMove(board: StoneType[][], aiPlayer: StoneType): Position | { move: Position, score: number };
   setDifficulty?(difficulty: string): void;
 }
 

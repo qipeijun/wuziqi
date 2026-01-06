@@ -40,6 +40,7 @@ export interface Move {
   player: StoneType;
   timestamp: number;
   moveNumber: number;
+  score?: number; // AI evaluation score
 }
 
 // 棋局快照

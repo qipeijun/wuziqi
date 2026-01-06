@@ -2,14 +2,35 @@
 
 .boardContainer {
   position: relative;
-  width: $board-size;
-  height: $board-size;
+  // Responsive sizing:
+  // Base size: $board-size (720px)
+  // Max constraint 1: 95% of viewport width (for mobile)
+  // Max constraint 2: 90% of viewport height (for landscape/desktop to avoid scrolling)
+  width: min($board-size, min(95vw, 90vh));
+  height: min($board-size, min(95vw, 90vh));
   padding: 30px;
-  background-color: $board-bg;
-  border-radius: $radius-lg;
-  border: 1px solid $border-medium; 
-  box-shadow: $shadow-card;
+  
+  // Realistic Wood Texture
+  background-color: $board-wood-base;
+  background-image: 
+    // Faint radial gradient for lighting
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.05) 100%),
+    // Procedural grain (simulated with repeating gradients)
+    repeating-linear-gradient(45deg, transparent 0, transparent 2px, $board-wood-grain 2px, $board-wood-grain 3px),
+    repeating-linear-gradient(-45deg, transparent 0, transparent 4px, $board-wood-grain 4px, $board-wood-grain 5px);
+  
+  border-radius: 4px; // Sharp corners for wood block
+  
+  // 2.5D Depth Effect (Beveled edges + Shadow)
+  border-bottom: 8px solid $board-side;
+  border-right: 8px solid $board-side;
+  border-top: 1px solid rgba(255,255,255,0.3);
+  border-left: 1px solid rgba(255,255,255,0.3);
+  
+  box-shadow: $shadow-board-depth;
+  
   user-select: none;
+  transition: transform $transition-base;
 }
 
 .boardBackground {
@@ -19,7 +40,17 @@
   right: 0;
   bottom: 0;
   z-index: 0;
-  border-radius: $radius-lg;
+  border-radius: 2px;
+  
+  // SVG Noise Filter for texture (via data URI if needed, but CSS noise is simpler)
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
 }
 
 .board {
@@ -39,12 +70,14 @@
   height: 100%;
   pointer-events: none;
   z-index: 20;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
 .winLine {
   stroke: $accent-red;
-  stroke-width: 4px;
+  stroke-width: 6px;
   stroke-linecap: round;
+  stroke-opacity: 0.8;
   animation: drawLine 0.5s ease-out forwards;
 }
 
@@ -67,13 +100,29 @@
 .cell {
   flex: 1;
   position: relative;
-  cursor: pointer;
+
+  &.occupied {
+    cursor: default;
+  }
+
+  &.forbidden {
+    cursor: not-allowed;
+
+    // Disable hover effect for forbidden cells
+    &:hover {
+      background: none !important;
+    }
+  }
+
+  &.clickable {
+    cursor: pointer;
+  }
+
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   // Use pseudo-elements for grid lines to ensure "intersection" look
-  // Horizontal line
   &::before {
     content: '';
     position: absolute;
@@ -82,12 +131,10 @@
     width: 100%;
     height: 1px;
     background-color: $grid-color;
-    // Darker grid lines for better visibility on paper background
-    background-color: rgba(55, 53, 47, 0.2); 
+    transform: scaleX(1.05); // Extend slightly to connect perfectly
     z-index: 0;
   }
-  
-  // Vertical line
+
   &::after {
     content: '';
     position: absolute;
@@ -95,7 +142,8 @@
     top: 0;
     height: 100%;
     width: 1px;
-    background-color: rgba(55, 53, 47, 0.2);
+    background-color: $grid-color;
+    transform: scaleY(1.05);
     z-index: 0;
   }
 }
@@ -104,62 +152,68 @@
 .coordLabel {
   position: absolute;
   font-size: 0.75rem;
-  color: $text-secondary;
+  font-weight: 600;
+  color: #5c4a35; // Darker brown for text on wood
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: $font-family-mono;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.4); // Etched effect
 }
 
 .coordTop {
   top: 6px;
-  width: calc(#{$board-size} / 15);
+  width: calc((100% - 60px) / 15);
   text-align: center;
 }
 
 .coordLeft {
   left: 6px;
-  height: calc(#{$board-size} / 15);
+  height: calc((100% - 60px) / 15);
   align-items: center;
 }
 
-// Ghost stone
-// Note: We use a separate pseudo element for ghost stone or rely on child
-// Since ::before/::after are used for grid lines, we need a different approach for ghost stone.
-// The previous implementation used ::after for ghost stone which conflicts with grid lines.
-// We will move ghost stone to a child element in React or use a dedicated class.
-// HOWEVER, to avoid changing React structure too much, we can use:
-// .cell:hover .ghostStone OR
-// We can use box-shadow/background on the cell content itself if it's empty? 
-// No, the cell is the container.
-// Let's use radial-gradient on the cell background for ghost stone!
-
-.board[data-player="black"] .cell:not(:has(.stone)):hover {
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.2) 0, rgba(0, 0, 0, 0.2) 42%, transparent 44%);
+// Ghost stone (Hover Preview)
+// 只在可交互时显示hover效果
+.board[data-player="black"] .cell.clickable:not(.occupied):not(.forbidden):hover {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.5) 0, rgba(0, 0, 0, 0.5) 35%, transparent 38%);
+  transition: background $transition-base;
 }
 
-.board[data-player="white"] .cell:not(:has(.stone)):hover {
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0, rgba(255, 255, 255, 0.6) 42%, transparent 44%);
+.board[data-player="white"] .cell.clickable:not(.occupied):not(.forbidden):hover {
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0.7) 35%, transparent 38%);
+  transition: background $transition-base;
 }
 
-
-// Handle Board Edges (Stop lines at center)
-.row:first-child .cell::after { top: 50%; }
+// Handle Board Edges
+.row:first-child .cell::after { top: 50%; height: 50%; }
 .row:last-child .cell::after { height: 50%; }
-.cell:first-child::before { left: 50%; }
+.cell:first-child::before { left: 50%; width: 50%; }
 .cell:last-child::before { width: 50%; }
 
-// 天元 & 星位 - Minimalist dots
+// TianYuan & Star Points
 .tianYuan, .starPoint {
   width: 8px;
   height: 8px;
-  background-color: $text-primary;
+  background-color: #1a1a1a;
   border-radius: 50%;
   position: absolute;
   z-index: 1;
+  box-shadow: 0 1px 1px rgba(255,255,255,0.3); // Etched highlight
 }
 
 .starPoint {
   width: 6px;
   height: 6px;
+}
+
+.forbiddenMarker {
+  position: absolute;
+  color: $accent-red;
+  font-size: 1.5rem;
+  font-weight: bold;
+  opacity: 0.8;
+  z-index: 5;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }

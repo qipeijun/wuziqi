@@ -3,6 +3,7 @@ import { Board } from './components/Board/Board';
 import { GameInfo } from './components/GameInfo/GameInfo';
 import { GameMenu } from './components/GameMenu/GameMenu';
 import { GameResult } from './components/GameResult/GameResult';
+import { ReplayControl } from './components/Replay/ReplayControl';
 import { useGameStore } from './store/gameStore';
 import { useAI } from './hooks/useAI';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
@@ -14,9 +15,10 @@ function App() {
   const { isThinking } = useAI();
   useKeyboardControls(); // Keyboard shortcuts
   const [showMenu, setShowMenu] = useState(status === GameStatus.WAITING);
+  const { isReplaying } = useGameStore();
 
-  const handleStartGame = (mode: GameMode, difficulty?: AIDifficulty) => {
-    initGame(mode, difficulty);
+  const handleStartGame = (mode: GameMode, difficulty?: AIDifficulty, enableForbidden?: boolean) => {
+    initGame(mode, difficulty, enableForbidden);
     setShowMenu(false);
   };
 
@@ -32,13 +34,14 @@ function App() {
     <div className={styles.app}>
       {showMenu && <GameMenu onStartGame={handleStartGame} />}
       
-      {!showMenu && (status === GameStatus.BLACK_WIN || status === GameStatus.WHITE_WIN || status === GameStatus.DRAW) && (
+      {!showMenu && !isReplaying && (status === GameStatus.BLACK_WIN || status === GameStatus.WHITE_WIN || status === GameStatus.DRAW) && (
         <GameResult onRestart={handleRestart} onBackToMenu={handleBackToMenu} />
       )}
 
       <div className={styles.container}>
-        <GameInfo />
-        <Board />
+        <GameInfo isAIThinking={isThinking} />
+        <Board isAIThinking={isThinking} />
+        <ReplayControl />
         {isThinking && (
           <div className={styles.aiThinking}>
             <div className={styles.spinner} />

@@ -20,27 +20,58 @@ class SoundManager {
     return this.isMuted;
   }
 
+  // Generic move sound (fallback)
   public playMoveSound() {
+    this.playStoneSound('generic');
+  }
+
+  // Distinct sounds for Black vs White
+  public playStoneSound(type: 'black' | 'white' | 'generic') {
     if (this.isMuted) return;
     try {
       const ctx = this.getContext();
+      const t = ctx.currentTime;
+      
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      
+      // Filter to simulate material resonance
+      const filter = ctx.createBiquadFilter();
 
-      // Wood-like "thock" sound
-      // Sine wave with a quick pitch drop and short decay
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
-
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-
-      osc.connect(gain);
+      osc.connect(filter);
+      filter.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
+      if (type === 'black') {
+        // Black Stone (Slate/Cloud Stone): Deeper, duller "Thock"
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, t);
+        
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+        
+        osc.start(t);
+        osc.stop(t + 0.15);
+      } else {
+        // White Stone (Shell/Glass): Higher, sharper "Click/Ti"
+        osc.type = 'triangle'; // Brighter waveform
+        osc.frequency.setValueAtTime(1200, t);
+        osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+        
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(1000, t); // Cut mud
+        
+        gain.gain.setValueAtTime(0.25, t); // Lower volume for high pitch to avoid harshness
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+        
+        osc.start(t);
+        osc.stop(t + 0.1);
+      }
+
     } catch (e) {
       console.warn('Audio play failed', e);
     }

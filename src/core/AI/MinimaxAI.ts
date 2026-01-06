@@ -2,26 +2,37 @@ import { Position, StoneType, AIDifficulty } from '@/types/game';
 import { AIPlayer } from '@/types/ai';
 import { Evaluator } from './Evaluator';
 import { PatternMatcher } from './PatternMatcher';
+import { ForbiddenMoveChecker } from '../ForbiddenChecker';
 import { BOARD_SIZE } from '@/utils/constants';
 import { cloneBoard, getCenterPosition } from '@/utils/helpers';
 
 /**
  * Minimax算法 + Alpha-Beta剪枝
  * 包含棋型识别和启发式评估
+ * 性能优化：移动排序、置换表、候选位置限制
  */
 export class MinimaxAI implements AIPlayer {
   private evaluator: Evaluator;
   private patternMatcher: PatternMatcher;
+  private forbiddenChecker: ForbiddenMoveChecker;
   private maxDepth: number;
   private searchRadius: number; // 搜索半径优化
+  private enableForbidden: boolean = true; // Default true
+  private transpositionTable: Map<string, number>; // 置换表缓存
 
   constructor(difficulty: AIDifficulty = AIDifficulty.MEDIUM) {
     this.evaluator = new Evaluator();
     this.patternMatcher = new PatternMatcher();
+    this.forbiddenChecker = new ForbiddenMoveChecker();
+    this.transpositionTable = new Map();
     // Initialize with default values to satisfy TypeScript
-    this.maxDepth = 3;
+    this.maxDepth = 2;
     this.searchRadius = 2;
     this.setDifficulty(difficulty);
+  }
+  
+  public setForbidden(enable: boolean) {
+    this.enableForbidden = enable;
   }
 
   public setDifficulty(difficulty: AIDifficulty): void {
@@ -31,11 +42,11 @@ export class MinimaxAI implements AIPlayer {
         this.searchRadius = 1;
         break;
       case AIDifficulty.MEDIUM:
-        this.maxDepth = 3;
+        this.maxDepth = 2;
         this.searchRadius = 2;
         break;
       case AIDifficulty.HARD:
-        this.maxDepth = 4;
+        this.maxDepth = 3;
         this.searchRadius = 2;
         break;
     }
@@ -44,19 +55,28 @@ export class MinimaxAI implements AIPlayer {
   /**
    * 获取AI的最佳移动
    */
-  public getBestMove(board: StoneType[][], aiPlayer: StoneType): Position {
+  public getBestMove(board: StoneType[][], aiPlayer: StoneType): { move: Position, score: number } {
     const startTime = Date.now();
+
+    // 清空置换表（每次新搜索）
+    this.transpositionTable.clear();
 
     // 如果是第一步，下在中心附近
     if (this.isFirstMove(board)) {
-      return this.getOpeningMove();
+      return { move: this.getOpeningMove(), score: 0 };
     }
 
     // 获取候选位置（只考虑已有棋子周围的位置）
-    const candidates = this.getCandidatePositions(board);
+    let candidates = this.getCandidatePositions(board, aiPlayer);
 
+    // 如果局部搜索没有结果（比如棋子周围都被占满或禁手），则全局搜索所有空位
     if (candidates.length === 0) {
-      return getCenterPosition(BOARD_SIZE);
+      candidates = this.getAllEmptyPositions(board, aiPlayer);
+    }
+
+    // 如果还是没有（满盘），返回中心点（虽然会失败，但至少不会崩）
+    if (candidates.length === 0) {
+      return { move: getCenterPosition(BOARD_SIZE), score: 0 };
     }
 
     // 先进行威胁检测
@@ -65,16 +85,19 @@ export class MinimaxAI implements AIPlayer {
       console.log(
         `AI找到关键位置: (${criticalMove.row}, ${criticalMove.col}), 耗时: ${Date.now() - startTime}ms`
       );
-      return criticalMove;
+      return { move: criticalMove, score: 10000 }; // High score for critical move
     }
+
+    // 移动排序：先快速评估每个候选位置，优先搜索好的位置
+    const rankedCandidates = this.rankCandidates(board, candidates, aiPlayer);
 
     // Minimax搜索
     let bestScore = -Infinity;
-    let bestMove = candidates[0];
+    let bestMove = rankedCandidates[0];
     let alpha = -Infinity;
     const beta = Infinity;
 
-    for (const candidate of candidates) {
+    for (const candidate of rankedCandidates) {
       // 创建棋盘副本并尝试落子（不修改原始棋盘）
       const boardCopy = cloneBoard(board);
       boardCopy[candidate.row][candidate.col] = aiPlayer;
@@ -94,6 +117,11 @@ export class MinimaxAI implements AIPlayer {
       }
 
       alpha = Math.max(alpha, score);
+
+      // 如果找到必胜点，立即返回
+      if (bestScore >= 100000) {
+        break;
+      }
     }
 
     const elapsed = Date.now() - startTime;
@@ -101,11 +129,11 @@ export class MinimaxAI implements AIPlayer {
       `AI思考完成: (${bestMove.row}, ${bestMove.col}), 分数: ${bestScore}, 耗时: ${elapsed}ms, 候选数: ${candidates.length}`
     );
 
-    return bestMove;
+    return { move: bestMove, score: bestScore };
   }
 
   /**
-   * Minimax算法核心
+   * Minimax算法核心（添加置换表缓存）
    */
   private minimax(
     board: StoneType[][],
@@ -115,23 +143,35 @@ export class MinimaxAI implements AIPlayer {
     beta: number,
     aiPlayer: StoneType
   ): number {
-    // 终止条件
-    if (depth === 0) {
-      return this.evaluator.evaluate(board, aiPlayer);
+    // 生成棋盘状态的哈希键
+    const boardKey = this.getBoardKey(board);
+
+    // 查找置换表
+    const cached = this.transpositionTable.get(boardKey);
+    if (cached !== undefined) {
+      return cached;
     }
 
-    const candidates = this.getCandidatePositions(board);
-    if (candidates.length === 0) {
-      return this.evaluator.evaluate(board, aiPlayer);
+    // 终止条件
+    if (depth === 0) {
+      const score = this.evaluator.evaluate(board, aiPlayer);
+      this.transpositionTable.set(boardKey, score);
+      return score;
     }
 
     const currentPlayer = isMaximizing ? aiPlayer : this.getOpponent(aiPlayer);
+    const candidates = this.getCandidatePositions(board, currentPlayer);
+
+    if (candidates.length === 0) {
+      const score = this.evaluator.evaluate(board, aiPlayer);
+      this.transpositionTable.set(boardKey, score);
+      return score;
+    }
 
     if (isMaximizing) {
       let maxScore = -Infinity;
 
       for (const pos of candidates) {
-        // 创建棋盘副本（不修改原始棋盘）
         const boardCopy = cloneBoard(board);
         boardCopy[pos.row][pos.col] = currentPlayer;
 
@@ -140,18 +180,21 @@ export class MinimaxAI implements AIPlayer {
         maxScore = Math.max(maxScore, score);
         alpha = Math.max(alpha, score);
 
-        // Alpha-Beta剪枝
         if (beta <= alpha) {
+          break;
+        }
+
+        if (maxScore >= 100000) {
           break;
         }
       }
 
+      this.transpositionTable.set(boardKey, maxScore);
       return maxScore;
     } else {
       let minScore = Infinity;
 
       for (const pos of candidates) {
-        // 创建棋盘副本（不修改原始棋盘）
         const boardCopy = cloneBoard(board);
         boardCopy[pos.row][pos.col] = currentPlayer;
 
@@ -163,20 +206,58 @@ export class MinimaxAI implements AIPlayer {
         if (beta <= alpha) {
           break;
         }
+
+        if (minScore <= -100000) {
+          break;
+        }
       }
 
+      this.transpositionTable.set(boardKey, minScore);
       return minScore;
     }
+  }
+
+  /**
+   * 生成棋盘的哈希键（用于置换表）
+   */
+  private getBoardKey(board: StoneType[][]): string {
+    let key = '';
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        key += board[r][c];
+      }
+    }
+    return key;
+  }
+
+  /**
+   * 移动排序：快速评估候选位置，返回排序后的列表
+   */
+  private rankCandidates(board: StoneType[][], candidates: Position[], aiPlayer: StoneType): Position[] {
+    const scored = candidates.map(pos => {
+      const boardCopy = cloneBoard(board);
+      boardCopy[pos.row][pos.col] = aiPlayer;
+      const score = this.evaluator.evaluate(boardCopy, aiPlayer);
+      return { pos, score };
+    });
+
+    // 按分数降序排序
+    scored.sort((a, b) => b.score - a.score);
+
+    return scored.map(item => item.pos);
   }
 
   /**
    * 获取候选位置（性能优化关键）
    * 只考虑已有棋子周围的空位
    */
-  private getCandidatePositions(board: StoneType[][]): Position[] {
+  private getCandidatePositions(board: StoneType[][], player?: StoneType): Position[] {
     const candidates: Position[] = [];
     const visited = Array(BOARD_SIZE).fill(false).map(() => Array(BOARD_SIZE).fill(false));
     const radius = this.searchRadius;
+
+    // 收集所有候选位置及其优先级
+    const candidatesWithPriority: Array<{ pos: Position; priority: number }> = [];
 
     for (let r = 0; r < BOARD_SIZE; r++) {
       for (let c = 0; c < BOARD_SIZE; c++) {
@@ -195,8 +276,20 @@ export class MinimaxAI implements AIPlayer {
                 board[nr][nc] === StoneType.EMPTY &&
                 !visited[nr][nc]
               ) {
+                // 如果指定了玩家且是黑棋，检查是否禁手 (如果开启了禁手)
+                if (this.enableForbidden && player === StoneType.BLACK) {
+                  if (this.forbiddenChecker.checkForbidden(board, nr, nc)) {
+                    continue; // Skip forbidden moves
+                  }
+                }
+
                 visited[nr][nc] = true;
-                candidates.push({ row: nr, col: nc });
+
+                // 计算优先级（距离中心越近优先级越高）
+                const centerDist = Math.abs(nr - 7) + Math.abs(nc - 7);
+                const priority = 100 - centerDist;
+
+                candidatesWithPriority.push({ pos: { row: nr, col: nc }, priority });
               }
             }
           }
@@ -204,7 +297,9 @@ export class MinimaxAI implements AIPlayer {
       }
     }
 
-    return candidates;
+    // 按优先级排序，只返回前12个候选位置（更激进的剪枝）
+    candidatesWithPriority.sort((a, b) => b.priority - a.priority);
+    return candidatesWithPriority.slice(0, 12).map(c => c.pos);
   }
 
   /**
@@ -239,7 +334,7 @@ export class MinimaxAI implements AIPlayer {
    * 查找必胜位置（连四或活三）
    */
   private findWinningMove(board: StoneType[][], player: StoneType): Position | null {
-    const candidates = this.getCandidatePositions(board);
+    const candidates = this.getCandidatePositions(board, player);
 
     for (const pos of candidates) {
       // 创建棋盘副本进行测试
@@ -257,7 +352,7 @@ export class MinimaxAI implements AIPlayer {
   }
 
   private findActiveFour(board: StoneType[][], player: StoneType): Position | null {
-    const candidates = this.getCandidatePositions(board);
+    const candidates = this.getCandidatePositions(board, player);
 
     for (const pos of candidates) {
       // 创建棋盘副本进行测试
@@ -284,5 +379,22 @@ export class MinimaxAI implements AIPlayer {
 
   private getOpponent(player: StoneType): StoneType {
     return player === StoneType.BLACK ? StoneType.WHITE : StoneType.BLACK;
+  }
+
+  private getAllEmptyPositions(board: StoneType[][], player?: StoneType): Position[] {
+    const candidates: Position[] = [];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (board[r][c] === StoneType.EMPTY) {
+           if (this.enableForbidden && player === StoneType.BLACK) {
+             if (this.forbiddenChecker.checkForbidden(board, r, c)) {
+               continue;
+             }
+           }
+           candidates.push({ row: r, col: c });
+        }
+      }
+    }
+    return candidates;
   }
 }
