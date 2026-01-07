@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
+import { useToastStore } from '@/store/toastStore';
 import { GameMode, GameStatus, StoneType, Position, AIDifficulty } from '@/types/game';
 
 // Define message types for type safety
@@ -19,13 +20,14 @@ export const useAI = () => {
   const difficulty = useGameStore((state) => state.difficulty);
   const enableForbidden = useGameStore((state) => state.enableForbidden);
   const makeMove = useGameStore((state) => state.makeMove);
+  const addToast = useToastStore((state) => state.addToast);
 
   // 使用 ref 保存最新的 board 状态
   const boardRef = useRef(useGameStore.getState().board);
   const [isThinking, setIsThinking] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const isExecutingRef = useRef(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const thinkingStartTimeRef = useRef<number>(0); // 记录开始思考的时间
 
   // 订阅 board 变化
@@ -92,7 +94,11 @@ export const useAI = () => {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
-        alert('AI计算出错，请重新开始游戏');
+        addToast({
+          type: 'error',
+          message: 'AI计算出错，请尝试重新开始游戏',
+          duration: 5000,
+        });
       };
 
       return () => {

@@ -19,7 +19,7 @@ export const ReplayControl: React.FC = () => {
   } = useGameStore();
 
   // 拖动功能 - 默认位置：右边缘与菜单右边缘对齐
-  const { position, isDragging, dragRef, handleMouseDown } = useDraggable({
+  const { position, isDragging, dragRef, handleMouseDown, handleTouchStart } = useDraggable({
     x: Math.max(20, window.innerWidth / 2 - 180), // 与菜单右边缘对齐 (菜单宽480px，弹框约420px)
     y: Math.max(100, window.innerHeight * 0.6), // 屏幕中间偏下（60%位置）
   });
@@ -65,6 +65,7 @@ export const ReplayControl: React.FC = () => {
       <div
         className={styles.dragHandle}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         title="拖动面板"
       >
         <div className={styles.headerActions}>

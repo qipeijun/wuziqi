@@ -219,15 +219,16 @@ export class MinimaxAI implements AIPlayer {
 
   /**
    * 生成棋盘的哈希键（用于置换表）
+   * 使用数组join优化性能
    */
   private getBoardKey(board: StoneType[][]): string {
-    let key = '';
+    const values: number[] = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
       for (let c = 0; c < BOARD_SIZE; c++) {
-        key += board[r][c];
+        values.push(board[r][c]);
       }
     }
-    return key;
+    return values.join(',');
   }
 
   /**
@@ -252,7 +253,6 @@ export class MinimaxAI implements AIPlayer {
    * 只考虑已有棋子周围的空位
    */
   private getCandidatePositions(board: StoneType[][], player?: StoneType): Position[] {
-    const candidates: Position[] = [];
     const visited = Array(BOARD_SIZE).fill(false).map(() => Array(BOARD_SIZE).fill(false));
     const radius = this.searchRadius;
 

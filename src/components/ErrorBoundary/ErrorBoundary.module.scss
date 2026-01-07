@@ -1,0 +1,95 @@
+@import '@/styles/variables.scss';
+
+.errorBoundary {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2c241b;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.4) 80%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 12px);
+  z-index: 10000;
+}
+
+.errorCard {
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  color: $text-primary;
+  margin: 0 0 16px 0;
+}
+
+.message {
+  font-size: 16px;
+  color: $text-secondary;
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+}
+
+.resetButton {
+  background: linear-gradient(135deg, $accent-blue 0%, $accent-red 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(35, 131, 226, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.details {
+  margin: 24px 0;
+  text-align: left;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f9f9f9;
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: $text-secondary;
+    user-select: none;
+
+    &:hover {
+      color: $accent-blue;
+    }
+  }
+}
+
+.errorStack {
+  margin: 16px 0 0 0;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d32f2f;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}

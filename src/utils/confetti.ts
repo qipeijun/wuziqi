@@ -21,6 +21,7 @@ export class ConfettiSystem {
   private animationId: number | null = null;
   private width: number = 0;
   private height: number = 0;
+  private resizeHandler: (() => void) | null = null;
 
   private colors = ['#2383E2', '#D44C47', '#FFD700', '#32CD32', '#FF69B4'];
 
@@ -41,7 +42,10 @@ export class ConfettiSystem {
 
     this.ctx = this.canvas.getContext('2d');
     this.resize();
-    window.addEventListener('resize', () => this.resize());
+
+    // 保存引用以便清理
+    this.resizeHandler = () => this.resize();
+    window.addEventListener('resize', this.resizeHandler);
   }
 
   private resize() {
@@ -122,6 +126,31 @@ export class ConfettiSystem {
       this.ctx.clearRect(0, 0, this.width, this.height);
     }
   };
+
+  // 清理资源
+  public destroy() {
+    // 取消动画帧
+    if (this.animationId !== null) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = null;
+    }
+
+    // 移除事件监听
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
+    // 移除canvas元素
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+
+    // 清空引用
+    this.canvas = null;
+    this.ctx = null;
+    this.particles = [];
+  }
 }
 
 export const confetti = new ConfettiSystem();

@@ -7,6 +7,7 @@ interface Position {
 
 /**
  * 使元素可拖动的 Hook
+ * 支持鼠标和触摸屏操作
  * @param initialPosition 初始位置（可选）
  */
 export const useDraggable = (initialPosition?: Position) => {
@@ -17,6 +18,7 @@ export const useDraggable = (initialPosition?: Position) => {
   const dragRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef<Position>({ x: 0, y: 0 });
 
+  // 处理鼠标按下
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!dragRef.current) return;
 
@@ -30,14 +32,28 @@ export const useDraggable = (initialPosition?: Position) => {
     e.preventDefault();
   }, []);
 
+  // 处理触摸开始
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!dragRef.current) return;
+
+    const touch = e.touches[0];
+    const rect = dragRef.current.getBoundingClientRect();
+    offsetRef.current = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
+
+    setIsDragging(true);
+  }, []);
+
   useEffect(() => {
     if (!isDragging) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const updatePosition = (clientX: number, clientY: number) => {
       if (!dragRef.current) return;
 
-      const newX = e.clientX - offsetRef.current.x;
-      const newY = e.clientY - offsetRef.current.y;
+      const newX = clientX - offsetRef.current.x;
+      const newY = clientY - offsetRef.current.y;
 
       // 限制在窗口范围内
       const maxX = window.innerWidth - dragRef.current.offsetWidth;
@@ -49,16 +65,32 @@ export const useDraggable = (initialPosition?: Position) => {
       });
     };
 
-    const handleMouseUp = () => {
+    const handleMouseMove = (e: MouseEvent) => {
+      updatePosition(e.clientX, e.clientY);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      updatePosition(touch.clientX, touch.clientY);
+      e.preventDefault(); // 防止页面滚动
+    };
+
+    const handleEnd = () => {
       setIsDragging(false);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+    document.addEventListener('touchcancel', handleEnd);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleEnd);
+      document.removeEventListener('touchcancel', handleEnd);
     };
   }, [isDragging]);
 
@@ -67,5 +99,6 @@ export const useDraggable = (initialPosition?: Position) => {
     isDragging,
     dragRef,
     handleMouseDown,
+    handleTouchStart,
   };
 };

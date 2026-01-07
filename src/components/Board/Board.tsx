@@ -37,19 +37,19 @@ export const Board: React.FC<{ isAIThinking?: boolean }> = ({ isAIThinking = fal
     return newBoard;
   }, [currentBoard, isReplaying, replayStep, moveHistory]);
 
-  // 缓存禁手位置（性能优化）
+  // 缓存禁手位置（性能优化）- 同时缓存禁手类型避免重复计算
   const forbiddenPositions = useMemo(() => {
     if (!enableForbidden || isReplaying || status !== GameStatus.PLAYING || currentPlayer !== StoneType.BLACK) {
-      return new Set<string>();
+      return new Map<string, string>();
     }
 
-    const forbidden = new Set<string>();
+    const forbidden = new Map<string, string>();
     for (let r = 0; r < BOARD_SIZE; r++) {
       for (let c = 0; c < BOARD_SIZE; c++) {
         if (displayBoard[r][c] === StoneType.EMPTY) {
           const forbiddenType = forbiddenChecker.checkForbidden(displayBoard, r, c);
           if (forbiddenType) {
-            forbidden.add(`${r},${c}`);
+            forbidden.set(`${r},${c}`, forbiddenType);
           }
         }
       }
@@ -162,9 +162,8 @@ export const Board: React.FC<{ isAIThinking?: boolean }> = ({ isAIThinking = fal
         {Array.from({ length: BOARD_SIZE }).map((_, row) => (
           <div key={row} className={styles.row}>
             {Array.from({ length: BOARD_SIZE }).map((_, col) => {
-              // 从缓存中获取禁手状态
-              const isForbidden = forbiddenPositions.has(`${row},${col}`);
-              const forbiddenType = isForbidden ? forbiddenChecker.checkForbidden(displayBoard, row, col) : null;
+              // 从缓存中直接获取禁手类型，避免重复计算
+              const forbiddenType = forbiddenPositions.get(`${row},${col}`) || null;
 
               return (
                 <BoardCell

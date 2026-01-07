@@ -4,6 +4,8 @@ import { GameInfo } from './components/GameInfo/GameInfo';
 import { GameMenu } from './components/GameMenu/GameMenu';
 import { GameResult } from './components/GameResult/GameResult';
 import { ReplayControl } from './components/Replay/ReplayControl';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Toast } from './components/Toast';
 import { useGameStore } from './store/gameStore';
 import { useAI } from './hooks/useAI';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
@@ -31,31 +33,35 @@ function App() {
   };
 
   return (
-    <div className={styles.app}>
-      {showMenu && <GameMenu onStartGame={handleStartGame} />}
-      
-      {!showMenu && !isReplaying && (status === GameStatus.BLACK_WIN || status === GameStatus.WHITE_WIN || status === GameStatus.DRAW) && (
-        <GameResult onRestart={handleRestart} onBackToMenu={handleBackToMenu} />
-      )}
+    <ErrorBoundary>
+      <div className={styles.app}>
+        {showMenu && <GameMenu onStartGame={handleStartGame} />}
 
-      <div className={styles.container}>
-        <GameInfo isAIThinking={isThinking} />
-        <Board isAIThinking={isThinking} />
-        <ReplayControl />
-        {isThinking && (
-          <div className={styles.aiThinking}>
-            <div className={styles.spinner} />
-            <span>AI思考中...</span>
-          </div>
+        {!showMenu && !isReplaying && (status === GameStatus.BLACK_WIN || status === GameStatus.WHITE_WIN || status === GameStatus.DRAW) && (
+          <GameResult onRestart={handleRestart} onBackToMenu={handleBackToMenu} />
         )}
-      </div>
 
-      {!showMenu && (
-        <button className={styles.menuButton} onClick={handleBackToMenu}>
-          返回菜单
-        </button>
-      )}
-    </div>
+        <div className={styles.container}>
+          <GameInfo isAIThinking={isThinking} />
+          <Board isAIThinking={isThinking} />
+          <ReplayControl />
+          {isThinking && (
+            <div className={styles.aiThinking}>
+              <div className={styles.spinner} />
+              <span>AI思考中...</span>
+            </div>
+          )}
+        </div>
+
+        {!showMenu && (
+          <button className={styles.menuButton} onClick={handleBackToMenu}>
+            返回菜单
+          </button>
+        )}
+
+        <Toast />
+      </div>
+    </ErrorBoundary>
   );
 }
 
